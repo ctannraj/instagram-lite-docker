@@ -4,9 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class InstagramLiteInMemoryApplication {
+public class InstagramLiteDockerApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(InstagramLiteInMemoryApplication.class, args);
+        SpringApplication.run(InstagramLiteDockerApplication.class, args);
     }
 }
