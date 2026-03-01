@@ -220,6 +220,183 @@ SELECT * FROM instagram.posts_by_user WHERE user_id = 'user123';
 
 ---
 
+## 📄 Automated Setup Scripts
+
+The project includes helper scripts in the `scripts/` directory for automated setup and management.
+
+### Available Scripts
+
+#### 1. `scripts/docker-setup.sh` - Complete System Initialization
+
+This is the main setup script that orchestrates the entire initialization process.
+
+```bash
+chmod +x scripts/docker-setup.sh
+./scripts/docker-setup.sh
+```
+
+**What it does:**
+1. Stops and removes existing containers and volumes
+2. Starts Docker Compose services (Kafka & Cassandra)
+3. Waits for Cassandra to be ready (with health check)
+4. Initializes Cassandra schema from `cassandra-init.cql`
+5. Initializes Kafka topics via `kafka-init.sh`
+
+#### 2. `scripts/cassandra-init.cql` - Cassandra Schema
+
+CQL (Cassandra Query Language) script that defines the database schema.
+
+**Creates:**
+- Keyspace: `instagram` with SimpleStrategy replication
+- Table: `posts_by_id` (indexed by post ID)
+- Table: `posts_by_user` (indexed by user ID and timestamp for timeline queries)
+
+This file is automatically executed by `docker-setup.sh`.
+
+#### 3. `scripts/kafka-init.sh` - Kafka Topic Initialization
+
+Bash script that creates the Kafka topic for post events.
+
+```bash
+chmod +x scripts/kafka-init.sh
+./scripts/kafka-init.sh
+```
+
+**Creates:**
+- Topic: `post-events` with 1 partition and replication factor 1
+
+#### 4. `scripts/app-start` - Application Startup
+
+Simple script to build and start the Spring Boot application.
+
+```bash
+chmod +x scripts/app-start
+./scripts/app-start
+```
+
+**Performs:**
+1. Cleans and builds the Maven project (`mvn clean install`)
+2. Starts Spring Boot application (`mvn spring-boot:run`)
+
+### Quick Start with Scripts
+
+```bash
+# 1. Make all scripts executable
+chmod +x scripts/*.sh
+
+# 2. Run the complete setup
+./scripts/docker-setup.sh
+
+# 3. In another terminal, start the application
+./scripts/app-start
+
+# Application will be available at http://localhost:8080
+```
+
+### Script Execution Details
+
+**docker-setup.sh** performs these operations in sequence:
+1. Cleans up existing containers: `docker compose down -v --rmi all`
+2. Waits 5 seconds for cleanup
+3. Starts services: `docker compose up -d`
+4. Waits 5 seconds for services to initialize
+5. Polls Cassandra with `cqlsh` until it's ready
+6. Executes schema initialization: `cassandra-init.cql`
+7. Initializes Kafka topics: `kafka-init.sh`
+
+**kafka-init.sh** creates a Kafka topic:
+- Topic: `post-events`
+- Partitions: 1
+- Replication Factor: 1
+- Using: `kafka-topics` command in Kafka container
+
+**app-start** runs:
+- `mvn clean install` - Cleans and builds the project
+- `mvn spring-boot:run` - Starts the application
+
+---
+
+## 🔄 Complete Workflow
+
+### Quick Setup (Using Scripts)
+
+```bash
+# 1. Navigate to project directory
+cd instagram-lite-docker
+
+# 2. Make scripts executable
+chmod +x scripts/*.sh
+
+# 3. Run automated setup
+./scripts/docker-setup.sh
+
+# Wait for output indicating "Setup complete"
+# Then in another terminal:
+
+# 4. Build and start application
+./scripts/app-start
+
+# 5. Application is ready at http://localhost:8080
+```
+
+### Manual Setup (Without Scripts)
+
+```bash
+# 1. Build the Maven project
+mvn clean install
+
+# 2. Start Docker services
+docker compose up -d
+
+# 3. Wait for Cassandra to be ready (15-20 seconds)
+sleep 20
+
+# 4. Initialize Cassandra schema
+docker exec -it cassandra-instagram-lite-docker cqlsh < scripts/cassandra-init.cql
+
+# 5. Initialize Kafka topics
+./scripts/kafka-init.sh
+
+# 6. Run the application
+mvn spring-boot:run
+
+# Application will be available at http://localhost:8080
+```
+
+### Daily Operations
+
+```bash
+# Start services
+docker compose up -d
+
+# Check services are running
+docker compose ps
+
+# View logs (in separate terminals)
+docker compose logs -f cassandra
+docker compose logs -f kafka
+
+# Start application (in another terminal)
+./scripts/app-start
+
+# Test API
+curl -X POST http://localhost:8080/posts \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: user123" \
+  -d '{"text": "Hello Instagram!"}'
+
+# Check database
+docker exec -it cassandra-instagram-lite-docker cqlsh <<EOF
+USE instagram;
+SELECT * FROM posts_by_id;
+EOF
+
+# Stop everything
+docker compose down
+```
+
+---
+
 ## 📡 Architecture Overview
 
 ### Data Flow
@@ -530,13 +707,13 @@ curl -X PUT http://localhost:8080/posts/nonexistent_id \
 ## 📁 Project Structure
 
 ```
-instagram-lite-in-memory/
+instagram-lite-docker/
 ├── pom.xml                                          # Maven configuration
 ├── README.md                                        # This file
 ├── src/
 │   ├── main/
 │   │   ├── java/com/mnc/instagram/
-│   │   │   ├── InstagramLiteInMemoryApplication.java
+│   │   │   ├── InstagramLiteDockerApplication.java
 │   │   │   └── posts/
 │   │   │       ├── api/
 │   │   │       │   ├── CreatePostRequest.java
@@ -566,7 +743,7 @@ instagram-lite-in-memory/
 │   └── test/
 │       └── java/
 └── target/
-    └── instagram-lite-in-memory-0.0.1-SNAPSHOT.jar
+    └── instagram-lite-docker-0.0.1-SNAPSHOT.jar
 ```
 
 ### Directory Descriptions
@@ -768,7 +945,7 @@ For issues, questions, or improvements, please refer to the project documentatio
 
 ```bash
 # Stop all services and remove containers
-docker-compose down -v
+docker compose down -v
 
 # Remove Docker image
 docker rmi instagram-lite:latest
@@ -796,7 +973,7 @@ docker ps | grep cassandra
 docker logs cassandra-instagram-lite-docker
 
 # Restart Cassandra
-docker-compose restart cassandra
+docker compose restart cassandra
 
 # Wait and retry connection
 sleep 30
@@ -835,7 +1012,7 @@ EOF
 
 ### View All Running Containers
 ```bash
-docker-compose ps -a
+docker compose ps -a
 docker ps -a
 ```
 
@@ -864,7 +1041,7 @@ docker ps -a
 ## 📞 Support
 
 For issues or questions, check:
-1. Docker Compose logs: `docker-compose logs`
+1. Docker Compose logs: `docker compose logs`
 2. Application logs: `docker logs <container_id>`
 3. Cassandra shell: `docker exec -it cassandra-instagram-lite-docker cqlsh`
 
@@ -873,4 +1050,161 @@ For issues or questions, check:
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+---
+
+## 🚀 Quick Reference Guide
+
+### One-Command Setup
+```bash
+chmod +x scripts/*.sh && ./scripts/docker-setup.sh && ./scripts/app-start
+```
+
+### Essential Commands
+
+#### Docker Compose
+| Command | Purpose |
+|---------|---------|
+| `docker compose up -d` | Start all services (Cassandra & Kafka) |
+| `docker compose down -v` | Stop all services and remove volumes |
+| `docker compose ps` | List running services |
+| `docker compose logs -f` | View logs in real-time |
+| `docker compose restart cassandra` | Restart Cassandra |
+
+#### Cassandra
+| Command | Purpose |
+|---------|---------|
+| `docker exec -it cassandra-instagram-lite-docker cqlsh` | Enter Cassandra shell |
+| `docker exec -it cassandra-instagram-lite-docker cqlsh < scripts/cassandra-init.cql` | Initialize schema |
+| `cqlsh localhost 9042` | Connect from local machine |
+
+#### Cassandra CQL Queries
+| Query | Purpose |
+|-------|---------|
+| `SELECT * FROM instagram.posts_by_id;` | View all posts |
+| `SELECT * FROM instagram.posts_by_user WHERE user_id = 'user123';` | View user's timeline |
+| `TRUNCATE instagram.posts_by_id;` | Clear all posts |
+| `DESCRIBE TABLES;` | List all tables |
+
+#### Application
+| Command | Purpose |
+|---------|---------|
+| `./scripts/app-start` | Build and run application |
+| `mvn spring-boot:run` | Run application directly |
+| `java -jar target/instagram-lite-docker-0.0.1-SNAPSHOT.jar` | Run built JAR |
+| `mvn clean install` | Build the project |
+
+#### API Testing
+| Command | Purpose |
+|---------|---------|
+| `curl -X POST http://localhost:8080/posts -H "Content-Type: application/json" -H "X-User-Id: user123" -d '{"text": "Hello"}'` | Create post |
+| `curl -X GET http://localhost:8080/users/user123/timeline` | Get user timeline |
+| `curl -X DELETE http://localhost:8080/posts/{postId} -H "X-User-Id: user123"` | Delete post |
+
+### Port Reference
+| Service | Port | Container Name |
+|---------|------|-----------------|
+| Spring Boot App | 8080 | N/A |
+| Cassandra | 9042 | cassandra-instagram-lite-docker |
+| Kafka Broker | 9092 | kafka-instagram-lite-docker |
+
+### File Locations
+| File | Purpose |
+|------|---------|
+| `docker-compose.yml` | Docker Compose configuration |
+| `pom.xml` | Maven configuration |
+| `scripts/docker-setup.sh` | Automated setup script |
+| `scripts/cassandra-init.cql` | Cassandra schema |
+| `scripts/kafka-init.sh` | Kafka topic initialization |
+| `scripts/app-start` | Application startup script |
+| `src/main/resources/application.yaml` | Spring Boot configuration |
+
+### Directory Structure
+```
+instagram-lite-docker/
+├── scripts/                    # Helper scripts
+│   ├── docker-setup.sh        # Main setup script
+│   ├── cassandra-init.cql     # Database schema
+│   ├── kafka-init.sh          # Kafka configuration
+│   └── app-start              # Application startup
+├── src/
+│   ├── main/
+│   │   ├── java/              # Java source code
+│   │   └── resources/         # Application configuration
+│   └── test/
+├── docker-compose.yml         # Docker services
+├── dockerfile                 # Application Docker image
+├── pom.xml                    # Maven dependencies
+└── README.md                  # This file
+```
+
+### Health Checks
+```bash
+# Check if all services are running
+docker compose ps
+
+# Check Cassandra health
+docker exec cassandra-instagram-lite-docker \
+  cqlsh -e "SELECT release_version FROM system.local;"
+
+# Check Kafka health
+docker exec kafka-instagram-lite-docker \
+  kafka-broker-api-versions --bootstrap-server localhost:9092
+
+# Check application health
+curl http://localhost:8080/actuator/health 2>/dev/null || echo "App may not be running"
+```
+
+### Common Issues & Solutions
+
+| Issue | Solution |
+|-------|----------|
+| Cassandra not ready | Wait 15-20 seconds, then run schema init |
+| Port already in use | Kill process using `lsof -i :PORT` and `kill -9 PID` |
+| Docker daemon not running | Start Docker Desktop or Docker daemon |
+| Schema already exists | Run `docker compose down -v` before setup |
+| Kafka topic not found | Run `./scripts/kafka-init.sh` |
+| Build fails | Run `mvn clean install -DskipTests` |
+
+### Environment Variables
+```bash
+# Docker Compose creates these automatically:
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+CASSANDRA_CONTACT_POINTS=cassandra
+CASSANDRA_PORT=9042
+```
+
+### Logs Location
+```bash
+# Docker Compose logs
+docker compose logs
+
+# Specific service logs
+docker logs cassandra-instagram-lite-docker
+docker logs kafka-instagram-lite-docker
+
+# Application logs (when running via Maven)
+# Printed to console
+
+# Application logs (when running as JAR)
+# Printed to console or redirected to file
+java -jar target/instagram-lite-docker-0.0.1-SNAPSHOT.jar > app.log 2>&1
+```
+
+---
+
+## 📖 Documentation Overview
+
+- **Getting Started**: See [Build & Run](#build--run)
+- **Docker Setup**: See [Docker Commands](#docker-commands)
+- **Database**: See [Cassandra Database Setup](#cassandra-database-setup)
+- **API Usage**: See [API Endpoints](#api-endpoints)
+- **Troubleshooting**: See [Troubleshooting](#troubleshooting)
+- **Scripts**: See [Automated Setup Scripts](#automated-setup-scripts)
+
+---
+
+**Last Updated**: March 1, 2026
+**Project**: Instagram Lite - Docker & Cassandra Setup
+**Version**: 0.0.1-SNAPSHOT
 
