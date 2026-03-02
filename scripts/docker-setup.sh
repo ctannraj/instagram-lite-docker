@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if docker info > /dev/null 2>&1; then
+  echo "✅ Docker daemon is running"
+else
+  echo "❌ Docker daemon is NOT running"
+  exit 1
+fi
+
 echo "Stopping and removing containers..."
 docker compose down -v --rmi all
 
