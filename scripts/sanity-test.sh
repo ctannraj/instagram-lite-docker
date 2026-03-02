@@ -21,7 +21,14 @@ curl -s -X POST http://localhost:8080/posts \
         "text": "Hello World - my first post"
       }'
 
-POST_ID=$(get | jq -r '.[0].postId')
+POST_ID=$(get | jq -r '.[0].postId // empty')
+
+if [ -z "$POST_ID" ]; then
+  echo "No post found for user ${USER_ID}" >&2
+  echo "FAILURE!"
+  exit 1
+fi
+
 echo "New post : $POST_ID"
 
 echo "Update post ($POST_ID) ... "

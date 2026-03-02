@@ -34,7 +34,7 @@ A lightweight Instagram-like social media service built with Spring Boot. This a
 java -version
 mvn -version
 docker --version
-docker-compose --version
+docker compose --version
 ```
 
 ---
@@ -58,7 +58,7 @@ docker build -t instagram-lite:latest .
 
 ### 4. Start Services with Docker Compose
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 This will start:
@@ -89,71 +89,71 @@ docker run -p 8080:8080 --network instagram-lite-network instagram-lite:latest
 #### Start Services
 ```bash
 # Start with logs visible
-docker-compose up
+docker compose up
 
 # Start all services in the background
-docker-compose up -d
+docker compose up -d
 
 # Start specific service
-docker-compose up -d cassandra
-docker-compose up -d kafka
+docker compose up -d cassandra
+docker compose up -d kafka
 ```
 
 #### Stop Services
 ```bash
 # Stop all services
-docker-compose stop
+docker compose stop
 
 # Stop specific service
-docker-compose stop cassandra
-docker-compose stop kafka
+docker compose stop cassandra
+docker compose stop kafka
 ```
 
 #### Restart Services
 ```bash
 # Restart all services
-docker-compose restart
+docker compose restart
 
 # Restart specific service
-docker-compose restart cassandra
+docker compose restart cassandra
 ```
 
 #### Remove Services
 ```bash
 # Remove stopped containers, networks
-docker-compose down
+docker compose down
 
 # Remove containers, networks, AND volumes
-docker-compose down -v
+docker compose down -v
 
 # Remove all images as well
-docker-compose down -v --rmi all
+docker compose down -v --rmi all
 ```
 
 #### View Logs
 ```bash
 # View logs from all services
-docker-compose logs
+docker compose logs
 
 # View logs from specific service
-docker-compose logs cassandra
-docker-compose logs kafka
+docker compose logs cassandra
+docker compose logs kafka
 
 # Follow logs in real-time
-docker-compose logs -f cassandra
-docker-compose logs -f kafka
+docker compose logs -f cassandra
+docker compose logs -f kafka
 
 # View last 50 lines
-docker-compose logs --tail=50
+docker compose logs --tail=50
 ```
 
 #### Check Service Status
 ```bash
 # List running containers
-docker-compose ps
+docker compose ps
 
 # Check container details
-docker-compose ps -a
+docker compose ps -a
 ```
 
 ---
